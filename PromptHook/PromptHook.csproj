@@ -1,12 +1,23 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>prompt-hook</AssemblyName>
+    <RootNamespace>PromptHook</RootNamespace>
+    <Version>1.0.0</Version>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PromptHook.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="prompt-hook.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
 </Project>
