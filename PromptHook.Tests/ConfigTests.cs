@@ -33,6 +33,8 @@ public class ConfigTests : IDisposable
     [Fact]
     public void Parse_PlanExample()
     {
+        // projects 键必须是当前平台的绝对路径，"C:/" 在 Linux CI 上不合法
+        var projectKey = OperatingSystem.IsWindows() ? "C:/Code/.Net/PromptHook" : "/code/prompthook";
         var config = Load("""
                           {
                             "models": {
@@ -46,7 +48,7 @@ public class ConfigTests : IDisposable
                               }
                             },
                             "projects": {
-                              "C:/Code/.Net/PromptHook": {
+                              "__PROJECT__": {
                                 "models": {
                                   "deepseek-flash": "prompts/prompthook-deepseek.md"
                                 },
@@ -63,7 +65,8 @@ public class ConfigTests : IDisposable
                               "review": "prompts/review.md"
                             }
                           }
-                          """);
+                          """
+                          .Replace("__PROJECT__", projectKey));
 
         Assert.Equal("prompts/deepseek.md", config.Models!["deepseek-flash"]);
         Assert.Equal("prompts/deepseek-zcode.md", config.Agents!["zcode"].Models!["deepseek-flash"]);

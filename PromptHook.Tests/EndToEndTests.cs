@@ -16,7 +16,7 @@ public class EndToEndTests
     {
         var testBin    = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
         var repoRoot   = Path.GetFullPath(Path.Combine(testBin, "..", "..", "..", ".."));
-        var configName = Path.GetFileName(Path.GetDirectoryName(testBin)); // Debug / Release
+        var configName = Path.GetFileName(Path.GetDirectoryName(testBin))!; // Debug / Release
         var exe        = Path.Combine(repoRoot, "PromptHook", "bin", configName, "net10.0", "prompt-hook.exe");
         if (File.Exists(exe))
             return (exe, []);
@@ -450,7 +450,9 @@ public class EndToEndTests
 
         var (vCode, vStdout, vStderr) = Run(["--version"], stdinText : null);
         Assert.Equal(0, vCode);
-        Assert.Contains("1.0.0", vStdout);
+        // 版本号跟随 csproj，与 Program.VersionText 同源，避免改版本号后断言过期
+        var version = typeof(global::PromptHook.Program).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        Assert.Contains($"prompt-hook {version}", vStdout);
         Assert.Equal(string.Empty, vStderr);
     }
 
