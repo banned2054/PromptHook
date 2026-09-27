@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="PromptHook/PromptHook.csproj" />
+  <Project Path="PromptHook.Tests/PromptHook.Tests.csproj" />
 </Solution>
