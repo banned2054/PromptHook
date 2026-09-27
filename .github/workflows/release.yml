@@ -55,8 +55,8 @@ jobs:
                   cd "PromptHook/bin/Release/net10.0/$RID/publish"
                   PKG="$RUNNER_TEMP/prompt-hook-${GITHUB_REF_NAME}-${RID}"
                   if [[ "$RID" == win-* ]]; then
-                    # Windows runner 的 System32\tar.exe 是 bsdtar，-a 按扩展名生成 zip
-                    tar -a -cf "$PKG.zip" prompt-hook.exe prompt-hook.json
+                    # Git Bash 默认的 GNU tar 会把 "D:\..." 的盘符当作远程主机；显式调用 System32 的 bsdtar，-a 按扩展名生成 zip
+                    /c/Windows/System32/tar.exe -a -cf "$PKG.zip" prompt-hook.exe prompt-hook.json
                   else
                     tar -czf "$PKG.tar.gz" prompt-hook prompt-hook.json
                   fi
