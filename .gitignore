@@ -364,3 +364,7 @@ FodyWeavers.xsd
 # 参考资料 / 对比目录，不入库
 Compare/
 Reference/
+
+# ZCode 本地配置，不入库
+.zcode/
+.zcodeignore
