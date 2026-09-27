@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# 参考资料 / 对比目录，不入库
+Compare/
+Reference/
