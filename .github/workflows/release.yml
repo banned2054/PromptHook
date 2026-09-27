@@ -53,13 +53,12 @@ jobs:
                   RID: ${{ matrix.rid }}
               run: |
                   cd "PromptHook/bin/Release/net10.0/$RID/publish"
-                  cp "$GITHUB_WORKSPACE/LICENSE.txt" .
                   PKG="$RUNNER_TEMP/prompt-hook-${GITHUB_REF_NAME}-${RID}"
                   if [[ "$RID" == win-* ]]; then
                     # Windows runner 的 System32\tar.exe 是 bsdtar，-a 按扩展名生成 zip
-                    tar -a -cf "$PKG.zip" prompt-hook.exe prompt-hook.json LICENSE.txt
+                    tar -a -cf "$PKG.zip" prompt-hook.exe prompt-hook.json
                   else
-                    tar -czf "$PKG.tar.gz" prompt-hook prompt-hook.json LICENSE.txt
+                    tar -czf "$PKG.tar.gz" prompt-hook prompt-hook.json
                   fi
             - uses: actions/upload-artifact@v7
               with:
