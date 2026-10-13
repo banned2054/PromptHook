@@ -6,7 +6,19 @@ This format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## 📘 Versions
 
+- [🔖 Unreleased](#-unreleased)
 - [🚀 Release v0.0.1 — Initial Preview Release](#-release-v001--initial-preview-release)
+
+## 🔖 Unreleased
+
+### ✨ Added
+
+- **Codex adapter (SessionStart)**: new `codex` agent targeting the Codex CLI hooks system (v0.114+). Reads `hook_event_name`/`model`/`cwd` from the hook stdin JSON, checks only the snake_case event field, and wraps the selected Markdown in the `hookSpecificOutput.additionalContext` JSON envelope on stdout (same shape as ZCode) — per the official schemas (`codex-rs/hooks/schema/generated/session-start.command.*.json`), SessionStart stdout is parsed strictly as JSON and non-JSON output is dropped. Registration sample and field notes are in the README's Codex integration section. Not yet verified against a real host run.
+- The `--help` agent list is now generated from the adapter registry instead of being hardcoded.
+
+### 🧪 Tests
+
+- 111 xUnit tests: 11 Codex adapter unit tests and 3 Codex end-to-end cases (JSON-envelope injection, `cwd` project routing, non-target event skipping) added; existing ZCode coverage is unchanged.
 
 ## 🚀 Release v0.0.1 — Initial Preview Release
 

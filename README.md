@@ -42,7 +42,7 @@ prompt-hook --version
 
 | Option | Description |
 | --- | --- |
-| `<agent>` | Target agent identifier, lowercased; currently `zcode` |
+| `<agent>` | Target agent identifier, lowercased; currently `zcode` and `codex` |
 | `-g`, `--global` | Ignore project rules and select from global config only |
 | `--alias <name>` | Use the prompt under the root `aliases` node directly, skipping model and project matching |
 | `--model <name>` | Explicit model name; takes precedence over the value reported by the agent |
@@ -56,6 +56,7 @@ prompt-hook zcode -g
 prompt-hook zcode --alias review
 prompt-hook zcode --model deepseek-flash --project C:/Code/.Net/PromptHook
 prompt-hook zcode --debug
+prompt-hook codex --debug
 ```
 
 The debug log records the invocation result, model and project context, and the resolved prompt path; it never logs raw stdin or the Markdown content. If the log cannot be written, a note goes to stderr without changing the hook result.
@@ -119,7 +120,7 @@ Normal mode searches the following locations in order, selecting exactly one Mar
 
 `-g` runs only steps 3–4; with no project context, likewise only steps 3–4.
 
-**Config layers take precedence over model candidate order**: when the host reports a model name of the form `provider/model` (see ZCode integration), the adapter produces two candidates — the full name first, then the form with the first `/` prefix removed. Candidates are exhausted within the current layer first: if any candidate is configured there it is selected, and only when none match does the search move to the next layer. A prefix-stripped rule inside a project therefore beats a full-name rule globally, and an agent-specific stripped rule beats a generic full-name rule; when both candidates are configured in the same layer, the full name wins.
+**Config layers take precedence over model candidate order**: when the host reports a model name of the form `provider/model` (see the ZCode and Codex integration sections), the adapter produces two candidates — the full name first, then the form with the first `/` prefix removed. Candidates are exhausted within the current layer first: if any candidate is configured there it is selected, and only when none match does the search move to the next layer. A prefix-stripped rule inside a project therefore beats a full-name rule globally, and an agent-specific stripped rule beats a generic full-name rule; when both candidates are configured in the same layer, the full name wins.
 
 Only "rule not configured" falls back. If the selected file is missing, empty, blank, or unreadable, that is an error — it never silently degrades to a lower-priority rule. A missing model or a model with no matching rule ends normally (exit code 0) with no injection output. An explicit `--model` matches the given name exactly and generates no prefix-stripped candidates.
 
@@ -170,6 +171,47 @@ Field notes from a verified host run:
 - Troubleshooting: the host's structured log at `~/.zcode/cli/log/zcode-YYYY-MM-DD.jsonl` records failures as `hook.run.failed` (warn, with hookEventName/hookIndex/source/durationMs); successes produce no event and stderr is not logged. To confirm an injection, check whether the prompt text appears in `~/.zcode/cli/rollout/model-io-sess_*.jsonl`.
 
 `-g` only means "ignore project rules in the config and select from global layers"; it says nothing about where the settings or config files live.
+
+## Codex Integration (SessionStart)
+
+The Codex adapter follows the official Codex CLI hooks documentation (v0.114+; hooks ship enabled by default and can be turned off with `[features] hooks = false` in `config.toml`). Its input fields and output envelope have been verified field by field against the official schemas in the Codex repository (`codex-rs/hooks/schema/generated/session-start.command.*.json`); it has not yet been verified against a real host run — feedback welcome.
+
+- Reads the hook JSON from redirected stdin. Fields used: `hook_event_name`, `model` (documented as an "active model slug" string; an object with `id`/`name`/`model` string members is also tolerated), and `cwd` (the project root — Codex defines no project-directory environment variable, so there is no env fallback).
+- Only the snake_case `hook_event_name` field is checked — unlike ZCode there is no camelCase fallback. A missing event field proceeds by the convention that this command is registered for SessionStart.
+- A model slug containing `/` produces the same ordered candidates as ZCode: the full name first, then the form with the first `/` prefix removed.
+- On success, the selected Markdown is wrapped in the `hookSpecificOutput.additionalContext` JSON envelope on stdout — the same shape ZCode uses. The official schema parses SessionStart stdout strictly as JSON: non-JSON output is silently dropped by the parser, and only `additionalContext` gets injected into the developer context.
+- Exit codes as documented: 0 passes; 2 with a stderr reason blocks/feeds back; any other non-zero value is reported as a hook failure.
+- Large output is capped at roughly 2500 tokens by default ("spilling": the overflow goes to a temp file and the model sees only a head/tail preview). When injecting long convention documents, set `additionalContextLimit: 0` on the handler to disable the cap.
+
+### Registering the hook (not yet verified against a real host)
+
+Registration lives in `~/.codex/hooks.json` (user level) or `<repo>/.codex/hooks.json` (project level, loaded only when the project `.codex` layer is trusted). Hooks from multiple config layers merge — they all run.
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Code/Temp/prompt-hook/prompt-hook.exe codex",
+            "timeout": 60,
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Field notes from the official documentation:
+
+- On SessionStart the `matcher` matches the event source: `startup`, `resume`, `clear`, or `compact`. To inject on every session start, add one matcher group per source (whether an omitted matcher matches all sources follows the Claude Code convention — verify on your first run).
+- `command` carries the executable path and its arguments; `commandWindows` overrides the command on Windows. `timeout` is in seconds (default 600).
+- Hook definitions go through a hash-based trust review via `/hooks` on first use; `--dangerously-bypass-hook-trust` skips it once.
 
 ## Resource Limits
 

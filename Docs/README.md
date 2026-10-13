@@ -42,7 +42,7 @@ prompt-hook --version
 
 | 参数 | 说明 |
 | --- | --- |
-| `<agent>` | 目标 agent 标识,统一小写,当前支持 `zcode` |
+| `<agent>` | 目标 agent 标识,统一小写,当前支持 `zcode` 与 `codex` |
 | `-g`, `--global` | 忽略项目规则,仅按全局配置选择 |
 | `--alias <name>` | 直接使用根节点 `aliases` 中的提示词,跳过模型与项目匹配 |
 | `--model <name>` | 显式指定模型名,优先于 agent 上报的值 |
@@ -56,6 +56,7 @@ prompt-hook zcode -g
 prompt-hook zcode --alias review
 prompt-hook zcode --model deepseek-flash --project C:/Code/.Net/PromptHook
 prompt-hook zcode --debug
+prompt-hook codex --debug
 ```
 
 调试日志包含调用结果、模型与项目上下文、命中的提示词路径等诊断信息,不会记录 stdin 原文或 Markdown 正文。日志不可写时会向 stderr 提示,但不改变 hook 的执行结果。
@@ -119,7 +120,7 @@ prompt-hook zcode --debug
 
 `-g` 只执行第 3、4 步;没有项目上下文时同样只执行第 3、4 步。
 
-**配置层级优先于模型候选顺序**:当宿主上报 `provider/model` 形式的模型名时(见 ZCode 接入),适配器给出"完整模型名 → 去前缀形式"两个候选;先在当前层级内依次尝试,任一候选已配置即选中,该层级所有候选均未配置才进入下一层级。因此项目内的去前缀规则优先于全局的完整名规则,agent 专属的去前缀规则也优先于通用的完整名规则;同一层级同时配置两个候选时,完整名优先。
+**配置层级优先于模型候选顺序**:当宿主上报 `provider/model` 形式的模型名时(见 ZCode / Codex 接入),适配器给出"完整模型名 → 去前缀形式"两个候选;先在当前层级内依次尝试,任一候选已配置即选中,该层级所有候选均未配置才进入下一层级。因此项目内的去前缀规则优先于全局的完整名规则,agent 专属的去前缀规则也优先于通用的完整名规则;同一层级同时配置两个候选时,完整名优先。
 
 只有"规则未配置"才回退;已选中的文件缺失、为空、内容空白或无法读取时报告错误,不偷偷改用低优先级规则。缺少模型或模型无匹配规则时正常结束(退出码 0),不输出注入内容。显式 `--model` 只按给定名字精确匹配,不生成去前缀候选。
 
@@ -170,6 +171,47 @@ ZCode 适配器基于 `Reference/session-start-inject.py` 确认的协议:
 - 排查:宿主结构化日志在 `~/.zcode/cli/log/zcode-YYYY-MM-DD.jsonl`,失败记 `hook.run.failed`(warn,含 hookEventName/hookIndex/source/durationMs),成功没有事件、stderr 不入日志;注入成功与否可查 `~/.zcode/cli/rollout/model-io-sess_*.jsonl` 中是否出现提示词文本。
 
 `-g` 仅表示忽略配置中的项目规则、只按全局层级选择,与设置文件或配置文件放在哪里无关。
+
+## Codex 接入(SessionStart)
+
+Codex 适配器依据 Codex CLI 官方 hooks 文档实现(v0.114+,hooks 默认开启,可在 `config.toml` 中用 `[features] hooks = false` 关闭),输入字段与输出信封已对照官方仓库 schema(`codex-rs/hooks/schema/generated/session-start.command.*.json`)逐字段核实,尚未经真实宿主样例联调,欢迎反馈。
+
+- 读取重定向 stdin 中的 JSON。使用的字段:`hook_event_name`、`model`(文档描述为 "Active model slug" 字符串;同时容忍含 `id`/`name`/`model` 字符串成员的对象)与 `cwd`(项目根;Codex 未定义项目目录环境变量,因此没有环境变量回退)。
+- 只检查 snake_case 的 `hook_event_name` 字段——与 ZCode 不同,没有 camelCase 回退。事件字段缺失时按本命令注册在 SessionStart 的约定处理。
+- slug 含 `/` 时与 ZCode 同策略生成有序候选:完整名优先,再去首个前缀形式。
+- 成功时把选中的 Markdown 包装进 `hookSpecificOutput.additionalContext` JSON 信封写入 stdout,与 ZCode 同构。官方 schema 对 SessionStart 的 stdout 严格按 JSON 解析:非 JSON 输出会被解析器静默丢弃,只有 `additionalContext` 会被注入开发者上下文。
+- 退出码语义与文档一致:0 通过;2 配合 stderr 原因作为拦截/反馈;其他非零视为 hook 失败上报。
+- 大输出默认约 2500 token 截断("spilling":超出部分转存临时文件,模型只能看到头尾预览)。注入较长的规范文档时,在 handler 上设置 `additionalContextLimit: 0` 解除上限。
+
+### 注册 hook(尚未经真实宿主核实)
+
+注册位置是 `~/.codex/hooks.json`(用户级)或 `<repo>/.codex/hooks.json`(项目级,仅在项目 `.codex` 层受信任时加载)。多个配置层的 hooks 会合并且全部生效:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Code/Temp/prompt-hook/prompt-hook.exe codex",
+            "timeout": 60,
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+依据官方文档的要点:
+
+- SessionStart 的 `matcher` 匹配事件来源:`startup`、`resume`、`clear`、`compact`。要在每次会话启动都注入,需要为每个来源各注册一组(省略 matcher 是否匹配全部来源沿袭 Claude Code 惯例,首次运行时请验证)。
+- `command` 携带可执行文件路径与参数;Windows 上可用 `commandWindows` 覆盖。`timeout` 单位为秒(默认 600)。
+- hook 定义首次使用需经 `/hooks` 的基于哈希的信任审查;`--dangerously-bypass-hook-trust` 可一次性跳过。
 
 ## 资源边界
 
