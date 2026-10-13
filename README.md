@@ -2,7 +2,7 @@
 
 English | [**简体中文**](https://github.com/banned2054/PromptHook/blob/master/Docs/README.md)
 
-[![GitHub release](https://img.shields.io/github/v/release/banned2054/PromptHook)](https://github.com/banned2054/PromptHook/releases)[![License](https://img.shields.io/badge/license-Apache_2.0-green)](./LICENSE.txt)[![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
+[![GitHub release](https://img.shields.io/github/v/release/banned2054/PromptHook?include_prereleases&sort=semver)](https://github.com/banned2054/PromptHook/releases)[![License](https://img.shields.io/badge/license-Apache_2.0-green)](./LICENSE.txt)[![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 
 **PromptHook** is a small .NET 10 command-line hook: when an agent session starts, it selects a Markdown prompt by model name — with per-agent and per-project overrides — and outputs it in the target agent's hook protocol.
 

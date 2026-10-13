@@ -2,7 +2,7 @@
 
 [**English**](https://github.com/banned2054/PromptHook/blob/master/README.md) | 简体中文
 
-[![GitHub release](https://img.shields.io/github/v/release/banned2054/PromptHook)](https://github.com/banned2054/PromptHook/releases)[![License](https://img.shields.io/badge/license-Apache_2.0-green)](../LICENSE.txt)[![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
+[![GitHub release](https://img.shields.io/github/v/release/banned2054/PromptHook?include_prereleases&sort=semver)](https://github.com/banned2054/PromptHook/releases)[![License](https://img.shields.io/badge/license-Apache_2.0-green)](../LICENSE.txt)[![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 
 **PromptHook** 是一个小型 .NET 10 命令行 hook 程序:在 agent 会话启动时按模型名选择一份 Markdown 提示词,允许按 agent 和项目覆盖,并按目标 agent 的 hook 协议输出注入内容。
 
