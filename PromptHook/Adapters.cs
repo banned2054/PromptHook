@@ -26,11 +26,13 @@ internal static class AdapterRegistry
     private static readonly Dictionary<string, IAgentAdapter> Adapters = new(StringComparer.Ordinal)
     {
         ["zcode"] = new ZCodeAdapter(),
+        ["codex"] = new CodexAdapter()
     };
 
-    public static bool IsKnown(string agent) => Adapters.ContainsKey(agent);
+    // 排序输出，不依赖字典的枚举顺序
+    public static string KnownNames => string.Join(", ", Adapters.Keys.Order());
 
-    public static string KnownNames => string.Join(", ", Adapters.Keys);
+    public static bool IsKnown(string agent) => Adapters.ContainsKey(agent);
 
     public static IAgentAdapter Get(string agent)
         => Adapters.TryGetValue(agent, out var adapter)
@@ -38,48 +40,11 @@ internal static class AdapterRegistry
             : throw new PromptHookException(ExitCodes.Usage, $"未知 agent '{agent}'，当前支持: {KnownNames}");
 }
 
-/// <summary>ZCode SessionStart 适配器，基于 Reference/session-start-inject.py 确认的协议。</summary>
-internal sealed class ZCodeAdapter : IAgentAdapter
+/// <summary>各宿主 hook 输入的公共字段解析，供适配器共用。</summary>
+internal static class HookPayload
 {
-    public const string EventName = "SessionStart";
-
-    public string Name => "zcode";
-
-    public AdapterContext ResolveContext(JsonDocument? input)
-    {
-        if (input is null)
-            return new AdapterContext(ModelCandidates(null), EnvironmentProjectDir(), Proceed : true);
-
-        var root = input.RootElement;
-
-        // 事件字段缺失时按本命令注册在 SessionStart 的约定继续处理
-        var eventName = TryGetString(root, "hook_event_name") ?? TryGetString(root, "hookEventName");
-        if (eventName is not null && !string.Equals(eventName, EventName, StringComparison.Ordinal))
-            return AdapterContext.Skipped;
-
-        var models  = ModelCandidates(ExtractModel(root));
-        var project = ExtractProject(root);
-        return new AdapterContext(models, project, Proceed : true);
-    }
-
-    public void WriteOutput(Stream output, string markdown)
-    {
-        using var writer = new Utf8JsonWriter(output, new JsonWriterOptions
-        {
-            // 只按 JSON 规范转义，中文等非 ASCII 字符直接输出 UTF-8
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        });
-
-        writer.WriteStartObject();
-        writer.WriteStartObject("hookSpecificOutput");
-        writer.WriteString("hookEventName", EventName);
-        writer.WriteString("additionalContext", markdown);
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-    }
-
     // model 支持字符串及对象中的 id/name/model；对象值仅接受有效字符串
-    private static string? ExtractModel(JsonElement root)
+    public static string? ExtractModel(JsonElement root)
     {
         if (!root.TryGetProperty("model", out var model))
             return null;
@@ -90,12 +55,10 @@ internal sealed class ZCodeAdapter : IAgentAdapter
                 return NullIfEmpty(model.GetString());
             case JsonValueKind.Object :
                 foreach (var key in (ReadOnlySpan<string>)["id", "name", "model"])
-                {
                     if (model.TryGetProperty(key, out var value) &&
                         value.ValueKind == JsonValueKind.String  &&
                         NullIfEmpty(value.GetString()) is { } candidate)
                         return candidate;
-                }
 
                 return null;
             default :
@@ -103,11 +66,11 @@ internal sealed class ZCodeAdapter : IAgentAdapter
         }
     }
 
-    // 参考脚本实测的格式为 ${providerId}/${modelId}（如 804526c5-.../deepseek-flash），
-    // 但无法假定宿主始终携带 provider 前缀，也不能排除模型名本身包含 '/'。
+    // ZCode 实测格式为 ${providerId}/${modelId}（如 804526c5-.../deepseek-flash），Codex 的 model slug
+    // 同样可能携带 provider 前缀；但无法假定宿主始终携带前缀，也不能排除模型名本身包含 '/'。
     // 因此输出有序候选：完整模型名优先，其次才是去掉首个 '/' 前缀的形式；
     // 是否命中完全由配置的精确匹配决定，不在公共层任意截断。
-    private static List<string> ModelCandidates(string? model)
+    public static List<string> ModelCandidates(string? model)
     {
         if (model is null)
             return [];
@@ -122,17 +85,101 @@ internal sealed class ZCodeAdapter : IAgentAdapter
         return candidates;
     }
 
-    // 项目优先级中的事件字段：cwd（依据 Claude Code 兼容 hook 输入惯例，未由实际样例确认）→ ZCODE_PROJECT_DIR
-    private static string? ExtractProject(JsonElement root)
-        => NullIfEmpty(TryGetString(root, "cwd")) ?? EnvironmentProjectDir();
-
-    private static string? EnvironmentProjectDir()
-        => NullIfEmpty(Environment.GetEnvironmentVariable("ZCODE_PROJECT_DIR"));
-
-    private static string? TryGetString(JsonElement element, string name) =>
+    public static string? TryGetString(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
 
-    private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    public static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+}
+
+/// <summary>ZCode 与 Codex 共用的输出信封：Claude Code 系的 additionalContext 包装，两宿主逐字节一致。</summary>
+internal static class HookOutput
+{
+    public static void WriteContextEnvelope(Stream output, string eventName, string markdown)
+    {
+        using var writer = new Utf8JsonWriter(output, new JsonWriterOptions
+        {
+            // 只按 JSON 规范转义，中文等非 ASCII 字符直接输出 UTF-8
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+
+        writer.WriteStartObject();
+        writer.WriteStartObject("hookSpecificOutput");
+        writer.WriteString("hookEventName", eventName);
+        writer.WriteString("additionalContext", markdown);
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>ZCode SessionStart 适配器，基于 Reference/session-start-inject.py 确认的协议。</summary>
+internal sealed class ZCodeAdapter : IAgentAdapter
+{
+    public const string EventName = "SessionStart";
+
+    public string Name => "zcode";
+
+    public AdapterContext ResolveContext(JsonDocument? input)
+    {
+        if (input is null)
+            return new AdapterContext(HookPayload.ModelCandidates(null), EnvironmentProjectDir(), true);
+
+        var root = input.RootElement;
+
+        // 事件字段缺失时按本命令注册在 SessionStart 的约定继续处理
+        var eventName = HookPayload.TryGetString(root, "hook_event_name") ??
+                        HookPayload.TryGetString(root, "hookEventName");
+        if (eventName is not null && !string.Equals(eventName, EventName, StringComparison.Ordinal))
+            return AdapterContext.Skipped;
+
+        var models  = HookPayload.ModelCandidates(HookPayload.ExtractModel(root));
+        var project = ExtractProject(root);
+        return new AdapterContext(models, project, true);
+    }
+
+    public void WriteOutput(Stream output, string markdown)
+        => HookOutput.WriteContextEnvelope(output, EventName, markdown);
+
+    // 项目优先级中的事件字段：cwd（依据 Claude Code 兼容 hook 输入惯例，未由实际样例确认）→ ZCODE_PROJECT_DIR
+    private static string? ExtractProject(JsonElement root) =>
+        HookPayload.NullIfEmpty(HookPayload.TryGetString(root, "cwd")) ?? EnvironmentProjectDir();
+
+    private static string? EnvironmentProjectDir() =>
+        HookPayload.NullIfEmpty(Environment.GetEnvironmentVariable("ZCODE_PROJECT_DIR"));
+}
+
+/// <summary>
+///     Codex CLI SessionStart 适配器。输入字段（hook_event_name/model/cwd）与输出信封均已对照官方
+///     hooks schema（codex-rs/hooks/schema/generated/session-start.command.*.json）逐字段核实，尚未经真实宿主样例联调。
+/// </summary>
+internal sealed class CodexAdapter : IAgentAdapter
+{
+    public const string EventName = "SessionStart";
+
+    public string Name => "codex";
+
+    public AdapterContext ResolveContext(JsonDocument? input)
+    {
+        if (input is null)
+            return new AdapterContext(HookPayload.ModelCandidates(null), null, true);
+
+        var root = input.RootElement;
+
+        // Codex 只上报 snake_case 的 hook_event_name，无 camelCase 变体；
+        // 事件字段缺失时按本命令注册在 SessionStart 的约定继续处理
+        var eventName = HookPayload.TryGetString(root, "hook_event_name");
+        if (eventName is not null && !string.Equals(eventName, EventName, StringComparison.Ordinal))
+            return AdapterContext.Skipped;
+
+        // 项目上下文只认事件 cwd 字段：Codex 未定义项目目录环境变量
+        return new AdapterContext(HookPayload.ModelCandidates(HookPayload.ExtractModel(root)),
+                                  HookPayload.NullIfEmpty(HookPayload.TryGetString(root, "cwd")),
+                                  true);
+    }
+
+    // 官方 schema 规定 SessionStart 的 stdout 按 JSON 解析，非 JSON 输出会被解析器丢弃；
+    // 注入内容只认 hookSpecificOutput.additionalContext，信封与 ZCode 同构
+    public void WriteOutput(Stream output, string markdown)
+        => HookOutput.WriteContextEnvelope(output, EventName, markdown);
 }

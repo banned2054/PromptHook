@@ -5,8 +5,8 @@ using System.Text.Json;
 namespace PromptHook.Tests;
 
 /// <summary>
-/// 以子进程方式运行 prompt-hook，验证退出码、stdout/stderr 协议边界。
-/// 运行于主项目的 Debug（或测试配置同名）构建产物上。
+///     以子进程方式运行 prompt-hook，验证退出码、stdout/stderr 协议边界。
+///     运行于主项目的 Debug（或测试配置同名）构建产物上。
 /// </summary>
 public class EndToEndTests
 {
@@ -21,7 +21,7 @@ public class EndToEndTests
         if (File.Exists(exe))
             return (exe, []);
 
-        var dll = typeof(global::PromptHook.Program).Assembly.Location;
+        var dll = typeof(Program).Assembly.Location;
         Assert.False(string.IsNullOrEmpty(dll), "未找到主项目构建产物");
         return ("dotnet", ["exec", dll]);
     }
@@ -88,7 +88,7 @@ public class EndToEndTests
         {
             try
             {
-                process.Kill(entireProcessTree : true);
+                process.Kill(true);
             }
             catch (InvalidOperationException)
             {
@@ -118,7 +118,7 @@ public class EndToEndTests
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", Serialize(new { models = new { m1 = prompt } }));
 
             var (code, stdout, stderr) =
-                Run(["zcode", "--config", config], stdinText : Serialize(new { model = "m1" }));
+                Run(["zcode", "--config", config], Serialize(new { model = "m1" }));
 
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stderr);
@@ -147,10 +147,10 @@ public class EndToEndTests
                          Serialize(new { model = "804526c5-uuid/m1" }),
                          Serialize(new { model = new { id    = "m1" } }),
                          Serialize(new { model = new { name  = "m1" } }),
-                         Serialize(new { model = new { model = "m1" } }),
+                         Serialize(new { model = new { model = "m1" } })
                      })
             {
-                var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : stdin);
+                var (code, stdout, stderr) = Run(["zcode", "--config", config], stdin);
                 Assert.Equal(0, code);
                 Assert.Equal(string.Empty, stderr);
                 using var doc = JsonDocument.Parse(stdout);
@@ -172,7 +172,7 @@ public class EndToEndTests
         try
         {
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", """{"models": {"m1": "p.md"}}""");
-            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : """{"session_id":"abc"}""");
+            var (code, stdout, stderr) = Run(["zcode", "--config", config], """{"session_id":"abc"}""");
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stdout);
             Assert.Equal(string.Empty, stderr);
@@ -190,7 +190,7 @@ public class EndToEndTests
         try
         {
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", """{"models": {"m1": "p.md"}}""");
-            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : """{"model":"other"}""");
+            var (code, stdout, stderr) = Run(["zcode", "--config", config], """{"model":"other"}""");
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stdout);
             Assert.Equal(string.Empty, stderr);
@@ -208,7 +208,7 @@ public class EndToEndTests
         try
         {
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", "{}");
-            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : "");
+            var (code, stdout, stderr) = Run(["zcode", "--config", config], "");
             AssertExit(0, code, stdout, stderr);
             Assert.Equal(string.Empty, stdout);
             Assert.Equal(string.Empty, stderr);
@@ -226,7 +226,7 @@ public class EndToEndTests
         try
         {
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", "{}");
-            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : "{oops");
+            var (code, stdout, stderr) = Run(["zcode", "--config", config], "{oops");
             Assert.Equal(1, code);
             Assert.Equal(string.Empty, stdout);
             Assert.Contains("stdin", stderr);
@@ -270,7 +270,7 @@ public class EndToEndTests
                          """{"hookEventName":"PreToolUse","model":"m1"}"""
                      })
             {
-                var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : stdin);
+                var (code, stdout, stderr) = Run(["zcode", "--config", config], stdin);
                 Assert.Equal(0, code);
                 Assert.Equal(string.Empty, stdout);
                 Assert.Equal(string.Empty, stderr);
@@ -296,12 +296,12 @@ public class EndToEndTests
                 models = new { m1 = valid },
                 projects = new Dictionary<string, object>
                 {
-                    [project] = new { models = new { m1 = Path.Combine(dir, "missing.md") } },
-                },
+                    [project] = new { models = new { m1 = Path.Combine(dir, "missing.md") } }
+                }
             }));
 
             var (code, stdout, stderr) = Run(["zcode", "--config", config],
-                                             stdinText : Serialize(new { model = "m1", cwd = project }));
+                                             Serialize(new { model = "m1", cwd = project }));
 
             Assert.Equal(1, code);
             Assert.Equal(string.Empty, stdout);
@@ -326,26 +326,30 @@ public class EndToEndTests
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", Serialize(new
             {
                 models   = new { m1                                   = globalPrompt },
-                projects = new Dictionary<string, object> { [project] = new { models = new { m1 = projectPrompt } } },
+                projects = new Dictionary<string, object> { [project] = new { models = new { m1 = projectPrompt } } }
             }));
 
             var stdin = Serialize(new { model = "m1", cwd = project });
 
-            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : stdin);
+            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdin);
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stderr);
             using (var doc = JsonDocument.Parse(stdout))
+            {
                 Assert.Equal("PROJECT",
                              doc.RootElement.GetProperty("hookSpecificOutput").GetProperty("additionalContext")
                                 .GetString());
+            }
 
-            var (gCode, gStdout, gStderr) = Run(["zcode", "-g", "--config", config], stdinText : stdin);
+            var (gCode, gStdout, gStderr) = Run(["zcode", "-g", "--config", config], stdin);
             Assert.Equal(0, gCode);
             Assert.Equal(string.Empty, gStderr);
             using (var doc = JsonDocument.Parse(gStdout))
+            {
                 Assert.Equal("GLOBAL",
                              doc.RootElement.GetProperty("hookSpecificOutput").GetProperty("additionalContext")
                                 .GetString());
+            }
 
             TestPaths.Cleanup(project);
         }
@@ -365,15 +369,17 @@ public class EndToEndTests
             var config = TestPaths.WriteFile(dir, "prompt-hook.json",
                                              Serialize(new { aliases = new { review = prompt } }));
 
-            var (code, stdout, stderr) = Run(["zcode", "--alias", "review", "--config", config], stdinText : "");
+            var (code, stdout, stderr) = Run(["zcode", "--alias", "review", "--config", config], "");
             AssertExit(0, code, stdout, stderr);
             Assert.Equal(string.Empty, stderr);
             using (var doc = JsonDocument.Parse(stdout))
+            {
                 Assert.Equal("REVIEW RULES",
                              doc.RootElement.GetProperty("hookSpecificOutput").GetProperty("additionalContext")
                                 .GetString());
+            }
 
-            var (errCode, errStdout, errStderr) = Run(["zcode", "--alias", "nope", "--config", config], stdinText : "");
+            var (errCode, errStdout, errStderr) = Run(["zcode", "--alias", "nope", "--config", config], "");
             Assert.Equal(1, errCode);
             Assert.Equal(string.Empty, errStdout);
             Assert.Contains("nope", errStderr);
@@ -394,7 +400,7 @@ public class EndToEndTests
             var big       = TestPaths.WriteFile(dir, "big.md", new string('a', PromptReader.MaxBytes + 1));
             var bigConfig = TestPaths.WriteFile(dir, "big.json", Serialize(new { models = new { m1 = big } }));
             var (bigCode, bigStdout, bigStderr) =
-                Run(["zcode", "--config", bigConfig], stdinText : """{"model":"m1"}""");
+                Run(["zcode", "--config", bigConfig], """{"model":"m1"}""");
             Assert.Equal(1, bigCode);
             Assert.Equal(string.Empty, bigStdout);
             Assert.Contains("上限", bigStderr);
@@ -403,7 +409,7 @@ public class EndToEndTests
             var empty       = TestPaths.WriteFile(dir, "empty.md", "");
             var emptyConfig = TestPaths.WriteFile(dir, "empty.json", Serialize(new { models = new { m1 = empty } }));
             var (emptyCode, emptyStdout, emptyStderr) =
-                Run(["zcode", "--config", emptyConfig], stdinText : """{"model":"m1"}""");
+                Run(["zcode", "--config", emptyConfig], """{"model":"m1"}""");
             Assert.Equal(1, emptyCode);
             Assert.Equal(string.Empty, emptyStdout);
             Assert.Contains("为空", emptyStderr);
@@ -412,7 +418,7 @@ public class EndToEndTests
             var bad       = TestPaths.WriteBytes(dir, "bad.md", [0xFF, 0xFE, 0x41]);
             var badConfig = TestPaths.WriteFile(dir, "bad.json", Serialize(new { models = new { m1 = bad } }));
             var (badCode, badStdout, badStderr) =
-                Run(["zcode", "--config", badConfig], stdinText : """{"model":"m1"}""");
+                Run(["zcode", "--config", badConfig], """{"model":"m1"}""");
             Assert.Equal(1, badCode);
             Assert.Equal(string.Empty, badStdout);
             Assert.Contains("UTF-8", badStderr);
@@ -432,7 +438,7 @@ public class EndToEndTests
                      Array.Empty<string>()
                  })
         {
-            var (code, stdout, stderr) = Run(args, stdinText : "{}");
+            var (code, stdout, stderr) = Run(args, "{}");
             Assert.Equal(2, code);
             Assert.Equal(string.Empty, stdout);
             Assert.NotEqual(string.Empty, stderr);
@@ -442,16 +448,17 @@ public class EndToEndTests
     [Fact]
     public void HelpAndVersion_ExitZero()
     {
-        var (hCode, hStdout, hStderr) = Run(["--help"], stdinText : null);
+        var (hCode, hStdout, hStderr) = Run(["--help"], null);
         Assert.Equal(0, hCode);
         Assert.Contains("prompt-hook", hStdout);
         Assert.Contains("zcode", hStdout);
+        Assert.Contains("codex", hStdout);
         Assert.Equal(string.Empty, hStderr);
 
-        var (vCode, vStdout, vStderr) = Run(["--version"], stdinText : null);
+        var (vCode, vStdout, vStderr) = Run(["--version"], null);
         Assert.Equal(0, vCode);
         // 版本号跟随 csproj，与 Program.VersionText 同源，避免改版本号后断言过期
-        var version = typeof(global::PromptHook.Program).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        var version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
         Assert.Contains($"prompt-hook {version}", vStdout);
         Assert.Equal(string.Empty, vStderr);
     }
@@ -463,7 +470,7 @@ public class EndToEndTests
         var dir = TestPaths.CreateTempDir();
         try
         {
-            var (code, stdout, stderr) = Run(["zcode"], stdinText : """{"model":"anything"}""", workingDir : dir);
+            var (code, stdout, stderr) = Run(["zcode"], """{"model":"anything"}""", workingDir : dir);
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stdout);
             Assert.Equal(string.Empty, stderr);
@@ -483,7 +490,7 @@ public class EndToEndTests
             var prompt = TestPaths.WriteFile(dir, "p.md", "RELATIVE CONFIG");
             TestPaths.WriteFile(dir, "cfg.json", Serialize(new { models = new { m1 = prompt } }));
 
-            var (code, stdout, stderr) = Run(["zcode", "--config", "cfg.json"], stdinText : """{"model":"m1"}""",
+            var (code, stdout, stderr) = Run(["zcode", "--config", "cfg.json"], """{"model":"m1"}""",
                                              workingDir : dir);
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stderr);
@@ -509,10 +516,10 @@ public class EndToEndTests
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", Serialize(new
             {
                 models   = new { m1                                   = "unused.md" },
-                projects = new Dictionary<string, object> { [project] = new { models = new { m1 = prompt } } },
+                projects = new Dictionary<string, object> { [project] = new { models = new { m1 = prompt } } }
             }));
 
-            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : Serialize(new { model = "m1" }),
+            var (code, stdout, stderr) = Run(["zcode", "--config", config], Serialize(new { model = "m1" }),
                                              projectEnv : project);
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stderr);
@@ -538,11 +545,11 @@ public class EndToEndTests
             var fullPrompt = TestPaths.WriteFile(dir, "full.md", "FULL NAME");
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", Serialize(new
             {
-                models = new Dictionary<string, string> { ["deepseek/deepseek-flash"] = fullPrompt },
+                models = new Dictionary<string, string> { ["deepseek/deepseek-flash"] = fullPrompt }
             }));
 
             var (code, stdout, stderr) = Run(["zcode", "--config", config],
-                                             stdinText : """{"model":"deepseek/deepseek-flash"}""");
+                                             """{"model":"deepseek/deepseek-flash"}""");
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stderr);
             using var doc = JsonDocument.Parse(stdout);
@@ -575,30 +582,34 @@ public class EndToEndTests
                     [project] = new
                     {
                         agents = new
-                            { zcode = new { models = new Dictionary<string, string> { ["m1"] = projectPrompt } } },
-                    },
-                },
+                            { zcode = new { models = new Dictionary<string, string> { ["m1"] = projectPrompt } } }
+                    }
+                }
             }));
 
             // 带 cwd（项目上下文）：层级① 去前缀规则命中
             var stdin = Serialize(new { model = "804526c5-uuid/m1", cwd = project });
-            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdinText : stdin);
+            var (code, stdout, stderr) = Run(["zcode", "--config", config], stdin);
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stderr);
             using (var doc = JsonDocument.Parse(stdout))
+            {
                 Assert.Equal("PROJECT STRIPPED",
                              doc.RootElement.GetProperty("hookSpecificOutput").GetProperty("additionalContext")
                                 .GetString());
+            }
 
             // 无 cwd（无项目上下文）：只走全局层级，回退到全局完整名规则
             var (fCode, fStdout, fStderr) = Run(["zcode", "--config", config],
-                                                stdinText : Serialize(new { model = "804526c5-uuid/m1" }));
+                                                Serialize(new { model = "804526c5-uuid/m1" }));
             Assert.Equal(0, fCode);
             Assert.Equal(string.Empty, fStderr);
             using (var doc = JsonDocument.Parse(fStdout))
+            {
                 Assert.Equal("GLOBAL FULL",
                              doc.RootElement.GetProperty("hookSpecificOutput").GetProperty("additionalContext")
                                 .GetString());
+            }
 
             TestPaths.Cleanup(project);
         }
@@ -619,17 +630,17 @@ public class EndToEndTests
             var prompt = TestPaths.WriteFile(dir, "m1.md", "STRIPPED ONLY");
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", Serialize(new
             {
-                models = new Dictionary<string, string> { ["m1"] = prompt },
+                models = new Dictionary<string, string> { ["m1"] = prompt }
             }));
 
             var (code, stdout, stderr) = Run(["zcode", "--model", "804526c5-uuid/m1", "--config", config],
-                                             stdinText : Serialize(new { model = "804526c5-uuid/m1" }));
+                                             Serialize(new { model = "804526c5-uuid/m1" }));
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stdout);
             Assert.Equal(string.Empty, stderr);
 
             var (hCode, hStdout, hStderr) = Run(["zcode", "--config", config],
-                                                stdinText : Serialize(new { model = "804526c5-uuid/m1" }));
+                                                Serialize(new { model = "804526c5-uuid/m1" }));
             Assert.Equal(0, hCode);
             Assert.Equal(string.Empty, hStderr);
             using var doc = JsonDocument.Parse(hStdout);
@@ -658,12 +669,12 @@ public class EndToEndTests
                 models = new { m1 = globalPrompt },
                 projects = new Dictionary<string, object>
                 {
-                    [project] = new { agents = new { ZCode = new { models = new { m1 = projectPrompt } } } },
-                },
+                    [project] = new { agents = new { ZCode = new { models = new { m1 = projectPrompt } } } }
+                }
             }));
 
             var (code, stdout, stderr) = Run(["zcode", "--config", config],
-                                             stdinText : Serialize(new { model = "m1", cwd = project }));
+                                             Serialize(new { model = "m1", cwd = project }));
             Assert.Equal(0, code);
             Assert.Equal(string.Empty, stderr);
             using var doc = JsonDocument.Parse(stdout);
@@ -671,6 +682,99 @@ public class EndToEndTests
                          doc.RootElement.GetProperty("hookSpecificOutput").GetProperty("additionalContext")
                             .GetString());
             TestPaths.Cleanup(project);
+        }
+        finally
+        {
+            TestPaths.Cleanup(dir);
+        }
+    }
+
+    [Fact]
+    public void Codex_SessionStart_OutputsJsonEnvelope()
+    {
+        // 官方 schema：SessionStart 的 stdout 按 JSON 解析，注入内容位于 hookSpecificOutput.additionalContext
+        var dir = TestPaths.CreateTempDir();
+        try
+        {
+            const string markdown = "# Codex 交接\n\n- 中文 \"引号\" <标签> & 符号\n- 最后一行";
+            var prompt = TestPaths.WriteFile(dir, "prompts/c.md", markdown);
+            var config = TestPaths.WriteFile(dir, "prompt-hook.json", Serialize(new { models = new { m1 = prompt } }));
+
+            var (code, stdout, stderr) = Run(["codex", "--config", config],
+                                             Serialize(new { hook_event_name = "SessionStart", model = "m1" }));
+
+            Assert.Equal(0, code);
+            Assert.Equal(string.Empty, stderr);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.Equal(markdown,
+                         doc.RootElement.GetProperty("hookSpecificOutput").GetProperty("additionalContext")
+                            .GetString());
+        }
+        finally
+        {
+            TestPaths.Cleanup(dir);
+        }
+    }
+
+    [Fact]
+    public void Codex_ProjectRule_RoutedByCwd()
+    {
+        var dir = TestPaths.CreateTempDir();
+        try
+        {
+            var project       = TestPaths.CreateTempDir();
+            var globalPrompt  = TestPaths.WriteFile(dir, "g.md", "GLOBAL");
+            var projectPrompt = TestPaths.WriteFile(dir, "p.md", "PROJECT");
+            var config = TestPaths.WriteFile(dir, "prompt-hook.json", Serialize(new
+            {
+                models   = new { m1                                   = globalPrompt },
+                projects = new Dictionary<string, object> { [project] = new { models = new { m1 = projectPrompt } } }
+            }));
+
+            var (code, stdout, stderr) = Run(["codex", "--config", config],
+                                             Serialize(new
+                                             {
+                                                 hook_event_name = "SessionStart",
+                                                 model           = "m1",
+                                                 cwd             = project
+                                             }));
+
+            Assert.Equal(0, code);
+            Assert.Equal(string.Empty, stderr);
+            using (var doc = JsonDocument.Parse(stdout))
+            {
+                Assert.Equal("PROJECT",
+                             doc.RootElement.GetProperty("hookSpecificOutput").GetProperty("additionalContext")
+                                .GetString());
+            }
+
+            TestPaths.Cleanup(project);
+        }
+        finally
+        {
+            TestPaths.Cleanup(dir);
+        }
+    }
+
+    [Fact]
+    public void Codex_NonTargetEvent_NoOutput_ExitZero()
+    {
+        var dir = TestPaths.CreateTempDir();
+        try
+        {
+            var config = TestPaths.WriteFile(dir, "prompt-hook.json", """{"models": {"m1": "p.md"}}""");
+            foreach (var stdin in new[]
+                     {
+                         """{"hook_event_name":"UserPromptSubmit","model":"m1"}""",
+                         """{"hook_event_name":"PreToolUse","model":"m1"}""",
+                         """{"hook_event_name":"Stop","model":"m1"}"""
+                     })
+            {
+                var (code, stdout, stderr) = Run(["codex", "--config", config], stdin);
+                Assert.Equal(0, code);
+                Assert.Equal(string.Empty, stdout);
+                Assert.Equal(string.Empty, stderr);
+            }
         }
         finally
         {
@@ -687,7 +791,7 @@ public class EndToEndTests
         {
             var config = TestPaths.WriteFile(dir, "prompt-hook.json", "{}");
             var (code, stdout, stderr) = Run(["zcode", "--model", "-g", "--config", config],
-                                             stdinText : """{"model":"m1"}""");
+                                             """{"model":"m1"}""");
             Assert.Equal(2, code);
             Assert.Equal(string.Empty, stdout);
             Assert.Contains("缺少参数值", stderr);

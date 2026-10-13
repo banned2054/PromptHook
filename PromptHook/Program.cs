@@ -17,6 +17,26 @@ internal sealed class PromptHookException(int exitCode, string message) : Except
 
 internal static class Program
 {
+    private static string VersionText => typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
+    // 支持列表跟随 AdapterRegistry，避免新增适配器后帮助文本漂移
+    private static string HelpText => $"""
+        prompt-hook <agent> [-g|--global] [--alias <name>] [--model <name>] [--project <path>] [--config <path>] [--debug]
+        prompt-hook --help
+        prompt-hook --version
+
+        根据模型名选择一份 Markdown 提示词，按目标 agent 的 hook 协议输出注入内容。
+
+        参数:
+          <agent>            目标 agent 标识（小写），当前支持: {AdapterRegistry.KnownNames}
+          -g, --global       忽略项目规则，仅按全局配置选择
+          --alias <name>     直接使用别名对应的提示词，跳过模型与项目匹配
+          --model <name>     显式指定模型名，优先于 agent 上报的值
+          --project <path>   显式指定项目目录，优先于 agent 上报的值
+          --config <path>    配置文件路径，默认为 exe 同目录的 prompt-hook.json
+          --debug            将调用过程追加记录到 exe 同目录的 prompt-hook.log
+        """;
+
     private static int Main(string[] args)
     {
         // ZCode 等宿主按 UTF-8 读取捕获的流；Windows 重定向流默认跟随系统代码页，此处统一为 UTF-8
@@ -54,22 +74,16 @@ internal static class Program
     {
         // 只在流被重定向（宿主捕获）时替换写入器；交互终端保持系统控制台行为
         if (Console.IsErrorRedirected)
-        {
-            Console.SetError(new StreamWriter(Console.OpenStandardError(),
-                                              new UTF8Encoding(encoderShouldEmitUTF8Identifier : false))
+            Console.SetError(new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false))
             {
-                AutoFlush = true,
+                AutoFlush = true
             });
-        }
 
         if (Console.IsOutputRedirected)
-        {
-            Console.SetOut(new StreamWriter(Console.OpenStandardOutput(),
-                                            new UTF8Encoding(encoderShouldEmitUTF8Identifier : false))
+            Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false))
             {
-                AutoFlush = true,
+                AutoFlush = true
             });
-        }
     }
 
     private static int Run(string[] args, DebugLog? debugLog)
@@ -129,23 +143,4 @@ internal static class Program
         debugLog?.Write("hook 输出已写入 stdout");
         return ExitCodes.Success;
     }
-
-    private static string VersionText => typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
-
-    private const string HelpText = """
-        prompt-hook <agent> [-g|--global] [--alias <name>] [--model <name>] [--project <path>] [--config <path>] [--debug]
-        prompt-hook --help
-        prompt-hook --version
-
-        根据模型名选择一份 Markdown 提示词，按目标 agent 的 hook 协议输出注入内容。
-
-        参数:
-          <agent>            目标 agent 标识（小写），当前支持: zcode
-          -g, --global       忽略项目规则，仅按全局配置选择
-          --alias <name>     直接使用别名对应的提示词，跳过模型与项目匹配
-          --model <name>     显式指定模型名，优先于 agent 上报的值
-          --project <path>   显式指定项目目录，优先于 agent 上报的值
-          --config <path>    配置文件路径，默认为 exe 同目录的 prompt-hook.json
-          --debug            将调用过程追加记录到 exe 同目录的 prompt-hook.log
-        """;
 }
