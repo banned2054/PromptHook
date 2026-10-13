@@ -32,7 +32,7 @@ To build from source, see [Build & Test](#build--test).
 
 ## Command Line
 
-```text
+```shell
 prompt-hook <agent> [-g|--global] [--alias <name>]
                    [--model <name>] [--project <path>]
                    [--config <path>] [--debug]
@@ -50,7 +50,7 @@ prompt-hook --version
 | `--config <path>` | Config file path; defaults to `prompt-hook.json` next to the executable |
 | `--debug` | Append an invocation trace to `prompt-hook.log` next to the executable |
 
-```text
+```shell
 prompt-hook zcode
 prompt-hook zcode -g
 prompt-hook zcode --alias review

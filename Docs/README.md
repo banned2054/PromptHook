@@ -32,7 +32,7 @@ prompt-hook.json
 
 ## 命令行
 
-```text
+```shell
 prompt-hook <agent> [-g|--global] [--alias <name>]
                    [--model <name>] [--project <path>]
                    [--config <path>] [--debug]
@@ -50,7 +50,7 @@ prompt-hook --version
 | `--config <path>` | 配置文件路径;默认指向 exe 同目录的 `prompt-hook.json` |
 | `--debug` | 将调用过程追加记录到 exe 同目录的 `prompt-hook.log` |
 
-```text
+```shell
 prompt-hook zcode
 prompt-hook zcode -g
 prompt-hook zcode --alias review
