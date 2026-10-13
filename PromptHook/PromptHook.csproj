@@ -7,7 +7,7 @@
 		<Nullable>enable</Nullable>
 		<AssemblyName>prompt-hook</AssemblyName>
 		<RootNamespace>PromptHook</RootNamespace>
-		<Version>0.0.1</Version>
+		<Version>0.1.0</Version>
 		<PublishAot>true</PublishAot>
 		<InvariantGlobalization>true</InvariantGlobalization>
 	</PropertyGroup>
