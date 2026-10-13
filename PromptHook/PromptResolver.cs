@@ -4,11 +4,11 @@ namespace PromptHook;
 internal static class PromptResolver
 {
     /// <summary>
-    /// 配置层级优先于模型候选：先按①项目 agent → ②项目模型 → ③全局 agent → ④全局模型
-    /// 逐层查找，层内再按候选模型顺序（完整名 → 去前缀形式）精确匹配。某层任一候选已
-    /// 配置即选中，该层全部候选均未配置才进入下一层；返回配置登记的提示词路径（尚未按
-    /// 配置目录解析）。无匹配或缺少模型时返回 null，由调用方按"正常结束、不输出注入
-    /// 内容"处理。
+    ///     配置层级优先于模型候选：先按①项目 agent → ②项目模型 → ③全局 agent → ④全局模型
+    ///     逐层查找，层内再按候选模型顺序（完整名 → 去前缀形式）精确匹配。某层任一候选已
+    ///     配置即选中，该层全部候选均未配置才进入下一层；返回配置登记的提示词路径（尚未按
+    ///     配置目录解析）。无匹配或缺少模型时返回 null，由调用方按"正常结束、不输出注入
+    ///     内容"处理。
     /// </summary>
     public static string? Select(
         HookConfig config, string agent, IReadOnlyList<string> models, string? project, bool globalOnly, string? alias)
@@ -59,10 +59,8 @@ internal static class PromptResolver
             return null;
 
         foreach (var model in models)
-        {
             if (map.TryGetValue(model, out var prompt))
                 return prompt;
-        }
 
         return null;
     }

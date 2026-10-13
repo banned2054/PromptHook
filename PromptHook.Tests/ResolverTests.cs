@@ -21,41 +21,41 @@ public class ResolverTests
     public void FourLevelPriority_ProjectAgentWinsFirst()
     {
         var project = TempProjectPath();
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g-model.md" },
-                         agents : new Dictionary<string, AgentConfig>
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g-model.md" },
+                         new Dictionary<string, AgentConfig>
                          {
                              ["zcode"] = new() { Models = new Dictionary<string, string> { ["m1"] = "g-agent.md" } }
                          },
-                         projects : new Dictionary<string, ProjectConfig>
+                         new Dictionary<string, ProjectConfig>
                          {
-                             [project] = new ProjectConfig
+                             [project] = new()
                              {
                                  Models = new Dictionary<string, string> { ["m1"] = "p-model.md" },
                                  Agents = new Dictionary<string, AgentConfig>
                                  {
                                      ["zcode"] = new()
                                          { Models = new Dictionary<string, string> { ["m1"] = "p-agent.md" } }
-                                 },
-                             },
+                                 }
+                             }
                          });
 
         Assert.Equal("p-agent.md",
-                     PromptResolver.Select(config, "zcode", ["m1"], project, globalOnly : false, alias : null));
+                     PromptResolver.Select(config, "zcode", ["m1"], project, false, null));
 
         // 2. 项目的模型
         config.Projects![project].Agents!.Clear();
         Assert.Equal("p-model.md",
-                     PromptResolver.Select(config, "zcode", ["m1"], project, globalOnly : false, alias : null));
+                     PromptResolver.Select(config, "zcode", ["m1"], project, false, null));
 
         // 3. 全局的 agent + 模型
         config.Projects!.Clear();
         Assert.Equal("g-agent.md",
-                     PromptResolver.Select(config, "zcode", ["m1"], project, globalOnly : false, alias : null));
+                     PromptResolver.Select(config, "zcode", ["m1"], project, false, null));
 
         // 4. 全局的模型
         config.Agents!.Clear();
         Assert.Equal("g-model.md",
-                     PromptResolver.Select(config, "zcode", ["m1"], project, globalOnly : false, alias : null));
+                     PromptResolver.Select(config, "zcode", ["m1"], project, false, null));
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class ResolverTests
     {
         // 回归：项目级 agent 键 "ZCode" 必须命中，而不是静默落到全局规则
         var project = TempProjectPath();
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g.md" },
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g.md" },
                          projects : new Dictionary<string, ProjectConfig>
                          {
                              [project] = new()
@@ -71,55 +71,55 @@ public class ResolverTests
                                  Agents = new Dictionary<string, AgentConfig>
                                  {
                                      ["ZCode"] = new() { Models = new Dictionary<string, string> { ["m1"] = "p.md" } }
-                                 },
-                             },
+                                 }
+                             }
                          });
 
-        Assert.Equal("p.md", PromptResolver.Select(config, "zcode", ["m1"], project, globalOnly : false, alias : null));
+        Assert.Equal("p.md", PromptResolver.Select(config, "zcode", ["m1"], project, false, null));
     }
 
     [Fact]
     public void GlobalMode_IgnoresProjectRules()
     {
         var project = TempProjectPath();
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g-model.md" },
-                         agents : new Dictionary<string, AgentConfig>
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g-model.md" },
+                         new Dictionary<string, AgentConfig>
                          {
                              ["zcode"] = new() { Models = new Dictionary<string, string> { ["m1"] = "g-agent.md" } }
                          },
-                         projects : new Dictionary<string, ProjectConfig>
+                         new Dictionary<string, ProjectConfig>
                          {
                              [project] = new() { Models = new Dictionary<string, string> { ["m1"] = "p-model.md" } }
                          });
 
         Assert.Equal("g-agent.md",
-                     PromptResolver.Select(config, "zcode", ["m1"], project, globalOnly : true, alias : null));
+                     PromptResolver.Select(config, "zcode", ["m1"], project, true, null));
     }
 
     [Fact]
     public void NoProjectContext_OnlyGlobalLevels()
     {
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g-model.md" },
-                         agents : new Dictionary<string, AgentConfig>
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g-model.md" },
+                         new Dictionary<string, AgentConfig>
                          {
                              ["zcode"] = new() { Models = new Dictionary<string, string> { ["m1"] = "g-agent.md" } }
                          });
 
         Assert.Equal("g-agent.md",
-                     PromptResolver.Select(config, "zcode", ["m1"], project : null, globalOnly : false, alias : null));
+                     PromptResolver.Select(config, "zcode", ["m1"], null, false, null));
     }
 
     [Fact]
     public void NoMatchingRule_ReturnsNull()
     {
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g.md" });
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g.md" });
         Assert.Null(PromptResolver.Select(config, "zcode", ["unknown"], null, false, null));
     }
 
     [Fact]
     public void MissingModel_ReturnsNull()
     {
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g.md" });
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g.md" });
         Assert.Null(PromptResolver.Select(config, "zcode", [], null, false, null));
         Assert.Null(PromptResolver.Select(config, "zcode", [""], null, false, null));
     }
@@ -127,7 +127,7 @@ public class ResolverTests
     [Fact]
     public void ModelName_ExactCaseSensitiveMatch()
     {
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g.md" });
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g.md" });
         Assert.Null(PromptResolver.Select(config, "zcode", ["M1"], null, false, null));
         Assert.Null(PromptResolver.Select(config, "zcode", ["m1 "], null, false, null));
         Assert.Null(PromptResolver.Select(config, "zcode", ["m"], null, false, null));
@@ -138,17 +138,17 @@ public class ResolverTests
     {
         // 回归：同一层级同时配置两个候选时，完整名必须优先于去前缀形式
         //（两个候选同层竞争，缺一不可）
-        var both = Cfg(models : new Dictionary<string, string>
+        var both = Cfg(new Dictionary<string, string>
         {
             ["deepseek/deepseek-flash"] = "full.md",
-            ["deepseek-flash"]          = "stripped.md",
+            ["deepseek-flash"]          = "stripped.md"
         });
         Assert.Equal("full.md",
                      PromptResolver.Select(both, "zcode", ["deepseek/deepseek-flash", "deepseek-flash"], null, false,
                                            null));
 
         // 未配置完整名时回退到去前缀形式（宿主携带 provider 前缀的场景，候选列表与适配器输出一致）
-        var strippedOnly = Cfg(models : new Dictionary<string, string> { ["deepseek-flash"] = "stripped.md" });
+        var strippedOnly = Cfg(new Dictionary<string, string> { ["deepseek-flash"] = "stripped.md" });
         Assert.Equal("stripped.md",
                      PromptResolver.Select(strippedOnly, "zcode", ["deepseek/deepseek-flash", "deepseek-flash"], null,
                                            false, null));
@@ -160,7 +160,7 @@ public class ResolverTests
         // 回归：层级优先于候选顺序——项目内 agent 去前缀规则必须赢过全局完整名规则，
         // 即使完整名候选在层内排序更靠前
         var project = TempProjectPath();
-        var config = Cfg(models : new Dictionary<string, string> { ["804526c5-uuid/m1"] = "g-full.md" },
+        var config = Cfg(new Dictionary<string, string> { ["804526c5-uuid/m1"] = "g-full.md" },
                          projects : new Dictionary<string, ProjectConfig>
                          {
                              [project] = new()
@@ -169,14 +169,14 @@ public class ResolverTests
                                  {
                                      ["zcode"] = new()
                                          { Models = new Dictionary<string, string> { ["m1"] = "p-agent-stripped.md" } }
-                                 },
-                             },
+                                 }
+                             }
                          });
 
         Assert.Equal(
                      "p-agent-stripped.md",
-                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, globalOnly : false,
-                                           alias : null));
+                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, false,
+                                           null));
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class ResolverTests
     {
         // 层级② 优先于层级④：项目级去前缀规则赢过全局完整名规则
         var project = TempProjectPath();
-        var config = Cfg(models : new Dictionary<string, string> { ["804526c5-uuid/m1"] = "g-full.md" },
+        var config = Cfg(new Dictionary<string, string> { ["804526c5-uuid/m1"] = "g-full.md" },
                          projects : new Dictionary<string, ProjectConfig>
                          {
                              [project] = new()
@@ -192,16 +192,16 @@ public class ResolverTests
                          });
 
         Assert.Equal("p-model-stripped.md",
-                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, globalOnly : false,
-                                           alias : null));
+                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, false,
+                                           null));
     }
 
     [Fact]
     public void AgentStrippedRule_BeatsGenericFullNameRule()
     {
         // 层级③ 优先于层级④：agent 专属去前缀规则赢过通用完整名规则
-        var config = Cfg(models : new Dictionary<string, string> { ["804526c5-uuid/m1"] = "g-full.md" },
-                         agents : new Dictionary<string, AgentConfig>
+        var config = Cfg(new Dictionary<string, string> { ["804526c5-uuid/m1"] = "g-full.md" },
+                         new Dictionary<string, AgentConfig>
                          {
                              ["zcode"] = new()
                                  { Models = new Dictionary<string, string> { ["m1"] = "g-agent-stripped.md" } }
@@ -227,16 +227,16 @@ public class ResolverTests
                         Models = new Dictionary<string, string>
                         {
                             ["804526c5-uuid/m1"] = "p-agent-full.md",
-                            ["m1"]               = "p-agent-stripped.md",
+                            ["m1"]               = "p-agent-stripped.md"
                         }
                     }
-                },
-            },
+                }
+            }
         });
 
         Assert.Equal("p-agent-full.md",
-                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, globalOnly : false,
-                                           alias : null));
+                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, false,
+                                           null));
     }
 
     [Fact]
@@ -244,7 +244,7 @@ public class ResolverTests
     {
         // 高优先级层级存在但两个候选均未配置时，正确回退到低优先级层级
         var project = TempProjectPath();
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g-model.md" },
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g-model.md" },
                          projects : new Dictionary<string, ProjectConfig>
                          {
                              [project] = new()
@@ -257,13 +257,13 @@ public class ResolverTests
                                          Models = new Dictionary<string, string>
                                              { ["also-unrelated"] = "p-agent-other.md" }
                                      }
-                                 },
-                             },
+                                 }
+                             }
                          });
 
         Assert.Equal("g-model.md",
-                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, globalOnly : false,
-                                           alias : null));
+                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, false,
+                                           null));
     }
 
     [Fact]
@@ -271,21 +271,21 @@ public class ResolverTests
     {
         // -g 语义不受层级/候选顺序调整影响：跳过项目层级，即使项目内去前缀规则可命中
         var project = TempProjectPath();
-        var config = Cfg(models : new Dictionary<string, string> { ["804526c5-uuid/m1"] = "g-full.md" },
+        var config = Cfg(new Dictionary<string, string> { ["804526c5-uuid/m1"] = "g-full.md" },
                          projects : new Dictionary<string, ProjectConfig>
                          {
                              [project] = new() { Models = new Dictionary<string, string> { ["m1"] = "p-stripped.md" } }
                          });
 
         Assert.Equal("g-full.md",
-                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, globalOnly : true,
-                                           alias : null));
+                     PromptResolver.Select(config, "zcode", ["804526c5-uuid/m1", "m1"], project, true,
+                                           null));
     }
 
     [Fact]
     public void Alias_OverridesModelAndProject()
     {
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"]      = "g.md" },
+        var config = Cfg(new Dictionary<string, string> { ["m1"]               = "g.md" },
                          aliases : new Dictionary<string, string> { ["review"] = "r.md" });
 
         Assert.Equal("r.md", PromptResolver.Select(config, "zcode", ["m1"], null, false, "review"));
@@ -295,7 +295,7 @@ public class ResolverTests
     [Fact]
     public void MissingAlias_ErrorsWithoutFallback()
     {
-        var config = Cfg(models : new Dictionary<string, string> { ["m1"] = "g.md" });
+        var config = Cfg(new Dictionary<string, string> { ["m1"] = "g.md" });
         var ex = Assert.Throws<PromptHookException>(() => PromptResolver.Select(config, "zcode", ["m1"], null, false,
                                                                                     "nope"));
         Assert.Equal(ExitCodes.IoError, ex.ExitCode);

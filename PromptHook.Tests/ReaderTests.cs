@@ -17,7 +17,7 @@ public class ReaderTests : IDisposable
     [Fact]
     public void Read_StripsUtf8Bom()
     {
-        var path = TestPaths.WriteFile(_dir, "bom.md", "# 标题", withBom : true);
+        var path = TestPaths.WriteFile(_dir, "bom.md", "# 标题", true);
         Assert.Equal("# 标题", PromptReader.Read(path));
     }
 

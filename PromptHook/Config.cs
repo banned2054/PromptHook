@@ -187,7 +187,6 @@ internal static class ConfigLoader
         {
             RejectNullBlock(agents, "$.agents");
             if (agents.ValueKind == JsonValueKind.Object)
-            {
                 foreach (var agent in agents.EnumerateObject())
                 {
                     RejectNullNode(agent.Value, $"$.agents.{JsonKey(agent.Name)}");
@@ -196,7 +195,6 @@ internal static class ConfigLoader
                     if (agent.Value.TryGetProperty("models", out var agentModels))
                         ValidateStringMap(agentModels, $"$.agents.{JsonKey(agent.Name)}.models");
                 }
-            }
         }
 
         if (!root.TryGetProperty("projects", out var projects)) return;

@@ -6,7 +6,7 @@ internal static class Utf8Text
 {
     // throwOnInvalidBytes: 非法编码报错而不是替换成 U+FFFD
     private static readonly UTF8Encoding Strict =
-        new(encoderShouldEmitUTF8Identifier : false, throwOnInvalidBytes : true);
+        new(false, true);
 
     /// <summary>按 UTF-8 严格解码，支持 BOM；解码失败按配置/文件读取错误处理。</summary>
     public static string Decode(byte[] bytes, string what)

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 namespace PromptHook.Tests;
 
@@ -36,37 +37,37 @@ public class ConfigTests : IDisposable
         // projects 键必须是当前平台的绝对路径，"C:/" 在 Linux CI 上不合法
         var projectKey = OperatingSystem.IsWindows() ? "C:/Code/.Net/PromptHook" : "/code/prompthook";
         var config = Load("""
-                          {
-                            "models": {
-                              "deepseek-flash": "prompts/deepseek.md"
-                            },
-                            "agents": {
-                              "zcode": {
+                              {
                                 "models": {
-                                  "deepseek-flash": "prompts/deepseek-zcode.md"
-                                }
-                              }
-                            },
-                            "projects": {
-                              "__PROJECT__": {
-                                "models": {
-                                  "deepseek-flash": "prompts/prompthook-deepseek.md"
+                                  "deepseek-flash": "prompts/deepseek.md"
                                 },
                                 "agents": {
                                   "zcode": {
                                     "models": {
-                                      "deepseek-flash": "prompts/prompthook-zcode-deepseek.md"
+                                      "deepseek-flash": "prompts/deepseek-zcode.md"
                                     }
                                   }
+                                },
+                                "projects": {
+                                  "__PROJECT__": {
+                                    "models": {
+                                      "deepseek-flash": "prompts/prompthook-deepseek.md"
+                                    },
+                                    "agents": {
+                                      "zcode": {
+                                        "models": {
+                                          "deepseek-flash": "prompts/prompthook-zcode-deepseek.md"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "aliases": {
+                                  "review": "prompts/review.md"
                                 }
                               }
-                            },
-                            "aliases": {
-                              "review": "prompts/review.md"
-                            }
-                          }
-                          """
-                          .Replace("__PROJECT__", projectKey));
+                              """
+                             .Replace("__PROJECT__", projectKey));
 
         Assert.Equal("prompts/deepseek.md", config.Models!["deepseek-flash"]);
         Assert.Equal("prompts/deepseek-zcode.md", config.Agents!["zcode"].Models!["deepseek-flash"]);
@@ -266,10 +267,10 @@ public class ConfigTests : IDisposable
                         ["agents"] = new Dictionary<string, object>
                         {
                             ["ZCode"] = new Dictionary<string, object>
-                                { ["models"] = new Dictionary<string, string> { ["m1"] = "a.md" } },
-                        },
-                    },
-                },
+                                { ["models"] = new Dictionary<string, string> { ["m1"] = "a.md" } }
+                        }
+                    }
+                }
             });
             var config = Load(json);
             Assert.NotNull(config.Projects);
@@ -299,10 +300,10 @@ public class ConfigTests : IDisposable
                         ["agents"] = new Dictionary<string, object>
                         {
                             ["zcode"] = new { },
-                            ["ZCode"] = new { },
-                        },
-                    },
-                },
+                            ["ZCode"] = new { }
+                        }
+                    }
+                }
             });
             Assert.Equal(ExitCodes.IoError, LoadError(json).ExitCode);
         }
@@ -312,5 +313,5 @@ public class ConfigTests : IDisposable
         }
     }
 
-    private static string Serialize(object value) => System.Text.Json.JsonSerializer.Serialize(value);
+    private static string Serialize(object value) => JsonSerializer.Serialize(value);
 }

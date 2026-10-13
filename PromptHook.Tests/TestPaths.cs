@@ -33,7 +33,7 @@ internal static class TestPaths
             return;
         try
         {
-            Directory.Delete(dir, recursive : true);
+            Directory.Delete(dir, true);
         }
         catch (IOException)
         {
